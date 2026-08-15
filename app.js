@@ -858,16 +858,25 @@
     };
   }
 
-  simCanvas.addEventListener('mousedown', (e) => {
-    const { x, y } = getCanvasCoords(e);
+  // Canvas rotate(theta) maps local (0, r) to world (-r*sin(theta), r*cos(theta))
+  // so the magnet world position is (pivotX - armPx*sin(theta), pivotY + armPx*cos(theta))
+  function getMagnetWorldPos() {
     const pivotX = simCanvas.width / 2;
     const pivotY = 48;
     const armPx = getPixelRadius();
+    return {
+      x: pivotX - armPx * Math.sin(state.theta),
+      y: pivotY + armPx * Math.cos(state.theta),
+      pivotX,
+      pivotY
+    };
+  }
 
-    const magnetX = pivotX + armPx * Math.sin(state.theta);
-    const magnetY = pivotY + armPx * Math.cos(state.theta);
+  simCanvas.addEventListener('mousedown', (e) => {
+    const { x, y } = getCanvasCoords(e);
+    const mag = getMagnetWorldPos();
 
-    const dist = Math.hypot(x - magnetX, y - magnetY);
+    const dist = Math.hypot(x - mag.x, y - mag.y);
     if (dist < 65) {
       state.isDragging = true;
       state.omega = 0.0;
@@ -880,14 +889,16 @@
     const pivotX = simCanvas.width / 2;
     const pivotY = 48;
 
-    let targetAngle = Math.atan2(x - pivotX, y - pivotY);
+    // atan2(-(x-px), y-py) matches canvas rotate() convention:
+    // positive theta = clockwise rotation = pendulum swings LEFT on screen
+    let targetAngle = Math.atan2(-(x - pivotX), y - pivotY);
     targetAngle = Math.max(-1.57, Math.min(1.57, targetAngle));
 
     state.theta = targetAngle;
     state.omega = 0.0;
     state.initialAngle = (Math.abs(targetAngle) * 180) / Math.PI;
-    slAngle.value = state.initialAngle.toFixed(0);
-    valAngle.textContent = `${state.initialAngle.toFixed(0)}°`;
+    slAngle.value = Math.round(state.initialAngle);
+    valAngle.textContent = `${Math.round(state.initialAngle)}°`;
   });
 
   window.addEventListener('mouseup', () => {
@@ -900,14 +911,9 @@
   simCanvas.addEventListener('touchstart', (e) => {
     e.preventDefault();
     const { x, y } = getCanvasCoords(e);
-    const pivotX = simCanvas.width / 2;
-    const pivotY = 48;
-    const armPx = getPixelRadius();
+    const mag = getMagnetWorldPos();
 
-    const magnetX = pivotX + armPx * Math.sin(state.theta);
-    const magnetY = pivotY + armPx * Math.cos(state.theta);
-
-    if (Math.hypot(x - magnetX, y - magnetY) < 75) {
+    if (Math.hypot(x - mag.x, y - mag.y) < 75) {
       state.isDragging = true;
       state.omega = 0.0;
     }
@@ -919,7 +925,7 @@
     const { x, y } = getCanvasCoords(e);
     const pivotX = simCanvas.width / 2;
     const pivotY = 48;
-    let targetAngle = Math.atan2(x - pivotX, y - pivotY);
+    let targetAngle = Math.atan2(-(x - pivotX), y - pivotY);
     targetAngle = Math.max(-1.57, Math.min(1.57, targetAngle));
     state.theta = targetAngle;
     state.omega = 0.0;
@@ -1037,7 +1043,7 @@
   });
 
   slMagnetDia.addEventListener('input', (e) => {
-    state.magnetDia = parseFloat(e.target.value) / 100.0;
+    state.magnetDia = parseFloat(e.target.value) / 1000.0;
     valMagnetDia.textContent = `${parseFloat(e.target.value).toFixed(1)} mm`;
     updateCoilSpecs();
   });
