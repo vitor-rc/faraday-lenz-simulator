@@ -17,40 +17,36 @@
 
   // --- Estado da Simulação ---
   const state = {
-    // Geometria da Estrutura em Arco Metálico (Limite R: 15 a 60 cm)
-    armLength: 0.30,      // Raio do arco R em metros (30 cm padrão, máx 60 cm)
-    arcSpan: 90,          // Extensão angular do arco metálico em graus (90° padrão)
-    initialAngle: 90,     // Ângulo inicial de soltura em graus (90° padrão)
-    theta: (90 * Math.PI) / 180, // Ângulo instantâneo em radianos
+    armLength: 0.30,
+    arcSpan: 90,
+    initialAngle: 90,
+    theta: (90 * Math.PI) / 180,
     omega: 0.0,
     alpha: 0.0,
     
-    // Parâmetros do Ímã Fatiado em Arco
-    magnetLength: 0.10,   // Comprimento do arco magnético (10 cm = 0.10 m)
-    magnetDia: 0.005,     // Diâmetro dos discos (5 mm)
-    sliceThickness: 0.001,// Espessura de cada fatia (1 mm)
-    magnetMass: 0.018,    // kg (~18 g)
-    ringMass: 0.020,      // kg (~20 g)
+    magnetLength: 0.10,
+    magnetDia: 0.005,
+    sliceThickness: 0.001,
+    magnetMass: 0.018,
+    ringMass: 0.020,
     
-    // Parâmetros da Bobina
     turns: 1000,
     wireDia: 0.00025,
     coilLength: 0.020,
     coilInnerDia: 0.010,
     
-    // Circuito e Switch
     circuitMode: 'leds',
     seriesResistor: 150,
     
-    // Grandezas Elétricas Instantâneas
     emf: 0.0,
     current: 0.0,
     vPeak: 0.0,
     iPeak: 0.0,
+    vPeakHoldTime: 0,
+    iPeakHoldTime: 0,
     coilResistance: 12.8,
     wireLength: 37.4,
     
-    // Visualização e Controles
     isPlaying: true,
     timeScale: 1.0,
     isDragging: false,
@@ -58,13 +54,12 @@
     showSlices: true,
     showVectors: true,
     
-    // LEDs Status
     ledRedBrightness: 0.0,
     ledGreenBrightness: 0.0,
     
-    // Timing
     lastTime: performance.now(),
-    simTime: 0.0
+    simTime: 0.0,
+    frameCount: 0
   };
 
   // --- Elementos do DOM ---
@@ -121,15 +116,46 @@
   const btnClearScope = document.getElementById('btnClearScope');
   const presetButtons = document.querySelectorAll('.btn-preset');
   const modeCards = document.querySelectorAll('.mode-radio-card');
+  const canvasStatusText = document.querySelector('.canvas-status-badge span:last-child');
 
-  const MAX_SCOPE_SAMPLES = 420;
+  const MAX_SCOPE_SAMPLES = 480;
   const scopeBuffer = [];
+
+  // ==========================================================================
+  // 0. RETINA / HIGH-DPI CANVAS SETUP
+  // ==========================================================================
+
+  function setupHiDPI(canvas, ctx) {
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    ctx.scale(dpr, dpr);
+    return { w: rect.width, h: rect.height, dpr };
+  }
+
+  let simW, simH, scopeW, scopeH;
+
+  function initCanvases() {
+    const sim = setupHiDPI(simCanvas, simCtx);
+    simW = sim.w; simH = sim.h;
+    const sco = setupHiDPI(scopeCanvas, scopeCtx);
+    scopeW = sco.w; scopeH = sco.h;
+  }
+
+  initCanvases();
+  window.addEventListener('resize', () => {
+    initCanvases();
+  });
 
   // ==========================================================================
   // 1. MOTOR DE CÁLCULO FÍSICO
   // ==========================================================================
 
   function updateCoilSpecs() {
+    // Garantia: diâmetro interno da bobina >= diâmetro do ímã + folga de 3mm
+    state.coilInnerDia = Math.max(0.010, state.magnetDia + 0.003);
+
     const rCoilInner = state.coilInnerDia / 2;
     const turnsPerLayer = Math.max(1, Math.floor(state.coilLength / state.wireDia));
     const layers = Math.ceil(state.turns / turnsPerLayer);
@@ -152,6 +178,12 @@
 
     telRCoil.textContent = `${state.coilResistance.toFixed(1)} Ω`;
     telWireLength.textContent = `${state.wireLength.toFixed(1)} m`;
+
+    // Atualiza status badge dinamicamente
+    const numSlices = Math.round(state.magnetLength / state.sliceThickness);
+    if (canvasStatusText) {
+      canvasStatusText.textContent = `Arco de ${state.arcSpan}° • ${numSlices} fatias de 1 mm (${(state.magnetLength * 100).toFixed(0)} cm)`;
+    }
   }
 
   function singleLoopFlux(z, rCoil, qm, Lm) {
@@ -225,8 +257,12 @@
       }
     }
 
+    // Torque de Lenz: DEVE SE OPOR ao movimento (frenagem)
+    // Power dissipada = emf * current = -(dΦ/dz * v) * current
+    // Torque = Power / omega. Sinal correto: tauLenz = emf * current / omega (se omega≠0)
+    // Equivalente a: tauLenz = -(dΦ/dθ)^2 * omega / R_total  (sempre oposto a omega)
     const dPhi_dtheta = dPhi_dz * state.armLength;
-    const tauLenz = -dPhi_dtheta * current;
+    const tauLenz = dPhi_dtheta * current;
 
     return { current, ledRedOn, ledGreenOn, tauLenz };
   }
@@ -241,7 +277,7 @@
       const { emf, dPhi_dz } = computeElectromagneticInduction(th, om);
       const { tauLenz } = solveCircuitAndLenz(emf, dPhi_dz, om);
 
-      const tauGrav = - (state.magnetMass + state.ringMass * 0.9) * G * R * Math.sin(th);
+      const tauGrav = -(state.magnetMass + state.ringMass * 0.9) * G * R * Math.sin(th);
       const tauAir = -AIR_DAMPING * Math.pow(R, 2) * om;
       const totalTorque = tauGrav + tauAir + tauLenz;
 
@@ -266,33 +302,37 @@
     state.ledRedBrightness = ledRedOn;
     state.ledGreenBrightness = ledGreenOn;
 
-    if (Math.abs(emf) > state.vPeak) state.vPeak = Math.abs(emf);
-    if (Math.abs(current * 1000) > state.iPeak) state.iPeak = Math.abs(current * 1000);
+    // Peak hold com retenção de 1.5 segundos antes de decair
+    if (Math.abs(emf) > state.vPeak) {
+      state.vPeak = Math.abs(emf);
+      state.vPeakHoldTime = 90; // ~1.5s at 60fps
+    }
+    if (Math.abs(current * 1000) > state.iPeak) {
+      state.iPeak = Math.abs(current * 1000);
+      state.iPeakHoldTime = 90;
+    }
 
-    state.vPeak *= 0.998;
-    state.iPeak *= 0.998;
-
-    scopeBuffer.push({
-      emf: state.emf,
-      current: state.current * 1000,
-      time: state.simTime
-    });
-    if (scopeBuffer.length > MAX_SCOPE_SAMPLES) {
-      scopeBuffer.shift();
+    if (state.vPeakHoldTime > 0) {
+      state.vPeakHoldTime--;
+    } else {
+      state.vPeak *= 0.992;
+    }
+    if (state.iPeakHoldTime > 0) {
+      state.iPeakHoldTime--;
+    } else {
+      state.iPeak *= 0.992;
     }
   }
 
   // ==========================================================================
-  // 2. RENDERIZADOR CANVAS COM REDIMENSIONAMENTO PERFEITO (15cm a 60cm)
+  // 2. RENDERIZADOR CANVAS COM HiDPI E REDIMENSIONAMENTO (15-60cm)
   // ==========================================================================
 
   function getPixelRadius() {
-    // Mapeamento proporcional de R in [0.15m, 0.60m] para pixels
-    // 0.15m -> 115px | 0.30m -> 165px | 0.60m -> 255px
     const minR = 0.15;
     const maxR = 0.60;
-    const minPx = 115;
-    const maxPx = 255;
+    const minPx = simH * 0.30;
+    const maxPx = simH * 0.62;
 
     const clampedR = Math.max(minR, Math.min(maxR, state.armLength));
     const fraction = (clampedR - minR) / (maxR - minR);
@@ -300,50 +340,40 @@
   }
 
   function drawSimulation() {
-    const w = simCanvas.width;
-    const h = simCanvas.height;
+    const w = simW;
+    const h = simH;
     simCtx.clearRect(0, 0, w, h);
 
     drawGrid(simCtx, w, h);
 
     const pivotX = w / 2;
-    const pivotY = 48;
+    const pivotY = h * 0.11;
 
-    // Raio visual calibrado em pixels
     const armPx = getPixelRadius();
     const pxPerMeter = armPx / state.armLength;
 
     const coilX = pivotX;
     const coilY = pivotY + armPx;
 
-    // 1. Suporte central no topo & transferidor
     drawStandAndProtractor(pivotX, pivotY);
-
-    // 2. Bancada inferior ancorada dinamicamente à posição da bobina
     drawWorkbench(w, coilY + 34);
 
-    // 3. Bobina e LEDs montados na base
     const coilW_px = Math.max(24, state.coilLength * pxPerMeter * 1.3);
     const coilH_px = Math.max(28, state.coilInnerDia * pxPerMeter * 2.2);
     drawCoilAssembly(coilX, coilY, coilW_px, coilH_px);
 
-    // 4. Estrutura do Arco Metálico (Padrão 90°)
     drawMetallicArcFrame(pivotX, pivotY, armPx, state.theta, state.arcSpan);
 
-    // 5. Linhas de Campo Magnético em Arco
     if (state.showFieldLines) {
       drawCurvedMagneticField(pivotX, pivotY, armPx, state.theta);
     }
 
-    // 6. Ímã Fatiado de 10 cm em Arco
     drawSegmentedCurvedMagnet(pivotX, pivotY, armPx, state.theta, pxPerMeter);
 
-    // 7. Vetor de Força de Lenz
     if (state.showVectors && Math.abs(state.current) > 0.001) {
       drawLenzVectorCurved(pivotX, pivotY, armPx, state.theta);
     }
 
-    // 8. Atualiza LEDs no HUD
     updateHudLeds();
   }
 
@@ -374,8 +404,11 @@
     simCtx.arc(px, py, 52, Math.PI * 0.1, Math.PI * 0.9);
     simCtx.stroke();
 
+    // Transferidor: usa a mesma convenção do rotate():
+    // ang=0 → arm straight down, ang>0 → clockwise (renders left on screen)
     for (let ang = -90; ang <= 90; ang += 15) {
-      const rad = (ang * Math.PI) / 180 + Math.PI / 2;
+      // map ang to canvas angle: straight down = PI/2, clockwise = increasing
+      const rad = Math.PI / 2 + (ang * Math.PI) / 180;
       const x1 = px + 48 * Math.cos(rad);
       const y1 = py + 48 * Math.sin(rad);
       const x2 = px + 56 * Math.cos(rad);
@@ -388,8 +421,8 @@
       simCtx.stroke();
 
       if (Math.abs(ang) % 30 === 0) {
-        simCtx.fillStyle = 'rgba(255, 255, 255, 0.35)';
-        simCtx.font = '8px "JetBrains Mono"';
+        simCtx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+        simCtx.font = '9px "JetBrains Mono"';
         simCtx.textAlign = 'center';
         simCtx.fillText(`${Math.abs(ang)}°`, px + 66 * Math.cos(rad), py + 66 * Math.sin(rad) + 3);
       }
@@ -526,7 +559,7 @@
     const midAngleS = startAngle + totalAngle * 0.75;
 
     simCtx.fillStyle = '#ffffff';
-    simCtx.font = 'bold 8px "JetBrains Mono"';
+    simCtx.font = 'bold 9px "JetBrains Mono"';
     simCtx.textAlign = 'center';
     simCtx.textBaseline = 'middle';
     simCtx.fillText('N', r * Math.cos(midAngleN), r * Math.sin(midAngleN));
@@ -632,8 +665,8 @@
     drawPhysicalLed(ledRedX, ledBaseY, '#ff1744', state.ledRedBrightness, 'LED 1');
     drawPhysicalLed(ledGreenX, ledBaseY, '#00e676', state.ledGreenBrightness, 'LED 2');
 
-    simCtx.fillStyle = 'rgba(255, 255, 255, 0.45)';
-    simCtx.font = '8px "JetBrains Mono"';
+    simCtx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+    simCtx.font = '9px "JetBrains Mono"';
     simCtx.textAlign = 'center';
     simCtx.fillText(`Bobina: ${state.turns} espiras • ${state.coilResistance.toFixed(1)} Ω`, cx, cy + ch / 2 + 34);
 
@@ -675,8 +708,8 @@
     simCtx.stroke();
 
     simCtx.shadowBlur = 0;
-    simCtx.fillStyle = glow > 0.1 ? color : 'rgba(255, 255, 255, 0.35)';
-    simCtx.font = '7px "JetBrains Mono"';
+    simCtx.fillStyle = glow > 0.1 ? color : 'rgba(255, 255, 255, 0.4)';
+    simCtx.font = '8px "JetBrains Mono"';
     simCtx.textAlign = 'center';
     simCtx.fillText(label, x, y + 11);
 
@@ -700,10 +733,10 @@
     simCtx.arc(0, 0, r + 12, Math.PI / 2, tipAngle, dir < 0);
     simCtx.stroke();
 
-    simCtx.font = '8px "JetBrains Mono"';
+    simCtx.font = '9px "JetBrains Mono"';
     simCtx.fillStyle = '#fda4af';
     simCtx.textAlign = 'center';
-    simCtx.fillText('F_Lenz', 0, r + 22);
+    simCtx.fillText('F_Lenz', 0, r + 24);
 
     simCtx.restore();
   }
@@ -716,7 +749,7 @@
     } else {
       hudLedRed.querySelector('.led-bulb').classList.remove('glowing');
       statusLedRed.textContent = 'Apagado';
-      statusLedRed.style.color = 'var(--text-muted)';
+      statusLedRed.style.color = '';
     }
 
     if (state.ledGreenBrightness > 0.1) {
@@ -726,20 +759,20 @@
     } else {
       hudLedGreen.querySelector('.led-bulb').classList.remove('glowing');
       statusLedGreen.textContent = 'Apagado';
-      statusLedGreen.style.color = 'var(--text-muted)';
+      statusLedGreen.style.color = '';
     }
   }
 
   // ==========================================================================
-  // 3. OSCILOSCÓPIO DIGITAL (COMPACTO)
+  // 3. OSCILOSCÓPIO DIGITAL
   // ==========================================================================
 
   function drawOscilloscope() {
-    const w = scopeCanvas.width;
-    const h = scopeCanvas.height;
+    const w = scopeW;
+    const h = scopeH;
     scopeCtx.clearRect(0, 0, w, h);
 
-    scopeCtx.strokeStyle = 'rgba(0, 229, 255, 0.08)';
+    scopeCtx.strokeStyle = 'rgba(0, 229, 255, 0.1)';
     scopeCtx.lineWidth = 1;
 
     const numDivsX = 10;
@@ -760,7 +793,7 @@
     }
 
     const midY = h / 2;
-    scopeCtx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+    scopeCtx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
     scopeCtx.setLineDash([2, 4]);
     scopeCtx.beginPath();
     scopeCtx.moveTo(0, midY);
@@ -777,6 +810,7 @@
     const scaleY_I = (h * 0.42) / maxCurrentRange;
     const stepX = w / MAX_SCOPE_SAMPLES;
 
+    // Canal 1: Tensão ℰ(t)
     scopeCtx.save();
     scopeCtx.strokeStyle = '#ffd600';
     scopeCtx.lineWidth = 1.8;
@@ -793,6 +827,7 @@
     scopeCtx.stroke();
     scopeCtx.restore();
 
+    // Canal 2: Corrente I(t)
     scopeCtx.save();
     scopeCtx.strokeStyle = '#00e5ff';
     scopeCtx.lineWidth = 1.6;
@@ -811,7 +846,7 @@
   }
 
   // ==========================================================================
-  // 4. LOOP PRINCIPAL
+  // 4. LOOP PRINCIPAL (amostragem do scope 1×/frame para janela temporal longa)
   // ==========================================================================
 
   function mainLoop(now) {
@@ -824,8 +859,20 @@
         physicsStep(dt);
         state.simTime += dt;
       }
+
+      // Amostragem do osciloscópio 1× por frame (não por sub-passo)
+      // Com 480 samples a 60fps → janela de ~8 segundos
+      scopeBuffer.push({
+        emf: state.emf,
+        current: state.current * 1000,
+        time: state.simTime
+      });
+      if (scopeBuffer.length > MAX_SCOPE_SAMPLES) {
+        scopeBuffer.shift();
+      }
     }
 
+    state.frameCount++;
     drawSimulation();
     drawOscilloscope();
     updateTelemetryHUD();
@@ -843,26 +890,26 @@
   }
 
   // ==========================================================================
-  // 5. INTERATIVIDADE MOUSE / TOUCH (TOUCH-ACTION: NONE)
+  // 5. INTERATIVIDADE MOUSE / TOUCH — COORDENADAS CORRETAS
   // ==========================================================================
 
   function getCanvasCoords(e) {
     const rect = simCanvas.getBoundingClientRect();
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-    const scaleX = simCanvas.width / rect.width;
-    const scaleY = simCanvas.height / rect.height;
+    // Retorna em CSS pixels (não canvas pixels) — simW/simH já estão em CSS px
     return {
-      x: (clientX - rect.left) * scaleX,
-      y: (clientY - rect.top) * scaleY
+      x: ((clientX - rect.left) / rect.width) * simW,
+      y: ((clientY - rect.top) / rect.height) * simH
     };
   }
 
-  // Canvas rotate(theta) maps local (0, r) to world (-r*sin(theta), r*cos(theta))
-  // so the magnet world position is (pivotX - armPx*sin(theta), pivotY + armPx*cos(theta))
+  // Canvas rotate(theta) maps local (0, r) to world:
+  //   x_world = pivotX + 0*cos(theta) - r*sin(theta) = pivotX - r*sin(theta)
+  //   y_world = pivotY + 0*sin(theta) + r*cos(theta) = pivotY + r*cos(theta)
   function getMagnetWorldPos() {
-    const pivotX = simCanvas.width / 2;
-    const pivotY = 48;
+    const pivotX = simW / 2;
+    const pivotY = simH * 0.11;
     const armPx = getPixelRadius();
     return {
       x: pivotX - armPx * Math.sin(state.theta),
@@ -872,12 +919,26 @@
     };
   }
 
+  function anglFromMouse(x, y) {
+    const pivotX = simW / 2;
+    const pivotY = simH * 0.11;
+    // atan2(-(x-px), y-py) matches canvas rotate() convention
+    let a = Math.atan2(-(x - pivotX), y - pivotY);
+    return Math.max(-1.57, Math.min(1.57, a));
+  }
+
+  function syncAngleUI(targetAngle) {
+    state.theta = targetAngle;
+    state.omega = 0.0;
+    state.initialAngle = (Math.abs(targetAngle) * 180) / Math.PI;
+    slAngle.value = Math.round(state.initialAngle);
+    valAngle.textContent = `${Math.round(state.initialAngle)}°`;
+  }
+
   simCanvas.addEventListener('mousedown', (e) => {
     const { x, y } = getCanvasCoords(e);
     const mag = getMagnetWorldPos();
-
-    const dist = Math.hypot(x - mag.x, y - mag.y);
-    if (dist < 65) {
+    if (Math.hypot(x - mag.x, y - mag.y) < 65) {
       state.isDragging = true;
       state.omega = 0.0;
     }
@@ -886,19 +947,7 @@
   window.addEventListener('mousemove', (e) => {
     if (!state.isDragging) return;
     const { x, y } = getCanvasCoords(e);
-    const pivotX = simCanvas.width / 2;
-    const pivotY = 48;
-
-    // atan2(-(x-px), y-py) matches canvas rotate() convention:
-    // positive theta = clockwise rotation = pendulum swings LEFT on screen
-    let targetAngle = Math.atan2(-(x - pivotX), y - pivotY);
-    targetAngle = Math.max(-1.57, Math.min(1.57, targetAngle));
-
-    state.theta = targetAngle;
-    state.omega = 0.0;
-    state.initialAngle = (Math.abs(targetAngle) * 180) / Math.PI;
-    slAngle.value = Math.round(state.initialAngle);
-    valAngle.textContent = `${Math.round(state.initialAngle)}°`;
+    syncAngleUI(anglFromMouse(x, y));
   });
 
   window.addEventListener('mouseup', () => {
@@ -912,7 +961,6 @@
     e.preventDefault();
     const { x, y } = getCanvasCoords(e);
     const mag = getMagnetWorldPos();
-
     if (Math.hypot(x - mag.x, y - mag.y) < 75) {
       state.isDragging = true;
       state.omega = 0.0;
@@ -923,12 +971,7 @@
     if (!state.isDragging) return;
     e.preventDefault();
     const { x, y } = getCanvasCoords(e);
-    const pivotX = simCanvas.width / 2;
-    const pivotY = 48;
-    let targetAngle = Math.atan2(-(x - pivotX), y - pivotY);
-    targetAngle = Math.max(-1.57, Math.min(1.57, targetAngle));
-    state.theta = targetAngle;
-    state.omega = 0.0;
+    syncAngleUI(anglFromMouse(x, y));
   }, { passive: false });
 
   window.addEventListener('touchend', () => {
@@ -969,6 +1012,13 @@
     state.vPeak = 0.0;
     state.iPeak = 0.0;
     scopeBuffer.length = 0;
+    // Auto-play ao soltar
+    if (!state.isPlaying) {
+      state.isPlaying = true;
+      iconPlay.classList.add('hidden');
+      iconPause.classList.remove('hidden');
+      labelPlayPause.textContent = 'Pausar';
+    }
   });
 
   speedButtons.forEach((btn) => {
@@ -1059,52 +1109,27 @@
     valSeriesR.textContent = `${state.seriesResistor} Ω`;
   });
 
-  // Presets (com limite R = 60 cm)
+  // Presets
   const presets = {
     compact: {
-      armLength: 30,
-      arcSpan: 90,
-      angle: 90,
-      turns: 1000,
-      wireGauge: 0.25,
-      magnetLength: 10.0,
-      magnetDia: 5.0,
-      coilLength: 2.0,
-      mode: 'leds'
+      armLength: 30, arcSpan: 90, angle: 90, turns: 1000,
+      wireGauge: 0.25, magnetLength: 10.0, magnetDia: 5.0,
+      coilLength: 2.0, mode: 'leds'
     },
     long: {
-      armLength: 60,
-      arcSpan: 90,
-      angle: 90,
-      turns: 1500,
-      wireGauge: 0.25,
-      magnetLength: 12.0,
-      magnetDia: 6.0,
-      coilLength: 2.5,
-      mode: 'leds'
+      armLength: 60, arcSpan: 90, angle: 90, turns: 1500,
+      wireGauge: 0.25, magnetLength: 12.0, magnetDia: 6.0,
+      coilLength: 2.5, mode: 'leds'
     },
     lenz: {
-      armLength: 30,
-      arcSpan: 90,
-      angle: 90,
-      turns: 1200,
-      wireGauge: 0.35,
-      magnetLength: 10.0,
-      magnetDia: 6.0,
-      coilLength: 2.0,
-      mode: 'short'
+      armLength: 30, arcSpan: 90, angle: 90, turns: 1200,
+      wireGauge: 0.35, magnetLength: 10.0, magnetDia: 6.0,
+      coilLength: 2.0, mode: 'short'
     },
     resistor: {
-      armLength: 30,
-      arcSpan: 90,
-      angle: 90,
-      turns: 1000,
-      wireGauge: 0.25,
-      magnetLength: 10.0,
-      magnetDia: 5.0,
-      coilLength: 2.0,
-      mode: 'resistor',
-      resistor: 150
+      armLength: 30, arcSpan: 90, angle: 90, turns: 1000,
+      wireGauge: 0.25, magnetLength: 10.0, magnetDia: 5.0,
+      coilLength: 2.0, mode: 'resistor', resistor: 150
     }
   };
 
@@ -1181,6 +1206,11 @@
   });
 
   // --- Inicialização ---
+  // Corrige o ícone play/pause para refletir estado real (simulação começa rodando)
+  iconPlay.classList.add('hidden');
+  iconPause.classList.remove('hidden');
+  labelPlayPause.textContent = 'Pausar';
+
   updateCoilSpecs();
   requestAnimationFrame(mainLoop);
 

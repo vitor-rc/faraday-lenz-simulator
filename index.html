@@ -128,12 +128,17 @@
           </div>
           <div class="scope-display-wrapper">
             <div class="scope-scale-gutter">
-              <span class="gutter-label top" id="scopeMaxY">+5.0 V</span>
-              <span class="gutter-label mid">0.0 V</span>
-              <span class="gutter-label bot" id="scopeMinY">-5.0 V</span>
+              <span class="gutter-label top highlight-yellow" id="scopeMaxY">+5.0 V</span>
+              <span class="gutter-label mid">0</span>
+              <span class="gutter-label bot highlight-yellow" id="scopeMinY">−5.0 V</span>
             </div>
             <div class="scope-canvas-container">
               <canvas id="scopeCanvas" width="880" height="110"></canvas>
+            </div>
+            <div class="scope-scale-gutter gutter-right">
+              <span class="gutter-label top highlight-cyan">+40 mA</span>
+              <span class="gutter-label mid">0</span>
+              <span class="gutter-label bot highlight-cyan">−40 mA</span>
             </div>
           </div>
         </div>
@@ -160,7 +165,7 @@
               <span class="tel-value highlight-cyan" id="telIPeak">0.0 mA</span>
             </div>
             <div class="telemetry-item">
-              <span class="tel-label">Velocidade no Fundo (v)</span>
+              <span class="tel-label">Velocidade Instantânea (v)</span>
               <span class="tel-value" id="telSpeed">0.00 m/s</span>
             </div>
             <div class="telemetry-item">

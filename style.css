@@ -15,7 +15,7 @@
 
   --text-primary: #f8fafc;
   --text-secondary: #94a3b8;
-  --text-muted: #64748b;
+  --text-muted: #8b9cb8;
 
   --accent-cyan: #00e5ff;
   --accent-cyan-glow: rgba(0, 229, 255, 0.35);
@@ -620,7 +620,7 @@ html, body {
 
 .scope-display-wrapper {
   display: grid;
-  grid-template-columns: 42px 1fr;
+  grid-template-columns: 42px 1fr 42px;
   background: #04060a;
   border: 1px solid rgba(0, 229, 255, 0.15);
   border-radius: var(--radius-sm);
@@ -644,7 +644,22 @@ html, body {
 }
 
 .gutter-label.mid {
-  color: rgba(255, 255, 255, 0.25);
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.gutter-right {
+  border-left: 1px solid rgba(255, 255, 255, 0.06);
+  border-right: none;
+  text-align: right;
+  padding: 4px 6px 4px 3px;
+}
+
+.gutter-label.highlight-yellow {
+  color: rgba(255, 214, 0, 0.6);
+}
+
+.gutter-label.highlight-cyan {
+  color: rgba(0, 229, 255, 0.6);
 }
 
 .scope-canvas-container {
