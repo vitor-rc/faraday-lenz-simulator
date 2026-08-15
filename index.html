@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+  <title>Simulador de Indução Eletromagnética | Balanço em Arco & Ímã Fatiado</title>
+  <meta name="description" content="Simulação visual de indução eletromagnética em formato 16:9 e responsivo para mobile com balanço em arco metálico de 90°, ímã fatiado em discos de 1mm, bobina e LEDs antiparalelos.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-container">
+    
+    <!-- Top Header -->
+    <header class="app-header">
+      <div class="header-brand">
+        <div class="logo-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+            <circle cx="12" cy="12" r="4"/>
+          </svg>
+        </div>
+        <div class="title-group">
+          <h1>Simulador de Indução Eletromagnética</h1>
+          <p class="subtitle">Arco Metálico de 90° • Ímã Fatiado de 1 mm (10 cm) • Bobina • LEDs Antiparalelos</p>
+        </div>
+      </div>
+
+      <div class="header-presets">
+        <span class="preset-label">Presets:</span>
+        <button class="btn-preset active" id="preset-compact" data-preset="compact">
+          <span class="preset-tag">Recomendado</span>
+          Bancada 30 cm
+        </button>
+        <button class="btn-preset" id="preset-long" data-preset="long">Balanço 60 cm</button>
+        <button class="btn-preset" id="preset-lenz" data-preset="lenz">Frenagem Lenz</button>
+        <button class="btn-preset" id="preset-resistor" data-preset="resistor">Com Resistor</button>
+      </div>
+    </header>
+
+    <!-- Main Workspace (16:9 Viewport & Mobile Responsive) -->
+    <main class="main-layout">
+      
+      <!-- Left Column: Canvas, Controls & Oscilloscope -->
+      <section class="simulation-section">
+        
+        <!-- Canvas Stage Card -->
+        <div class="canvas-card">
+          <div class="canvas-header-bar">
+            <div class="canvas-status-badge">
+              <span class="status-pulse"></span>
+              <span>Estrutura em Arco de 90° com Ímã de 100 Fatias de 1 mm</span>
+            </div>
+            <div class="canvas-header-hint">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+              <span>Toque e arraste o ímã para soltar de qualquer ângulo</span>
+            </div>
+          </div>
+
+          <div class="canvas-wrapper">
+            <canvas id="simCanvas" width="940" height="430"></canvas>
+          </div>
+        </div>
+
+        <!-- Playback & Visibility Toolbar -->
+        <div class="sim-control-bar">
+          <div class="playback-controls">
+            <button class="btn-ctrl primary" id="btnPlayPause" title="Iniciar / Pausar">
+              <svg id="iconPlay" width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              <svg id="iconPause" width="15" height="15" viewBox="0 0 24 24" fill="currentColor" class="hidden"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+              <span id="labelPlayPause">Pausar</span>
+            </button>
+            <button class="btn-ctrl" id="btnStep" title="Avançar 1 quadro">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></svg>
+              <span>Passo</span>
+            </button>
+            <button class="btn-ctrl" id="btnRelease" title="Soltar do ângulo inicial">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+              <span>Soltar (θ₀)</span>
+            </button>
+          </div>
+
+          <div class="speed-selector">
+            <span class="ctrl-label">Velocidade:</span>
+            <div class="speed-buttons">
+              <button class="btn-speed" data-speed="0.1">0.1×</button>
+              <button class="btn-speed" data-speed="0.25">0.25×</button>
+              <button class="btn-speed" data-speed="0.5">0.5×</button>
+              <button class="btn-speed active" data-speed="1.0">1.0×</button>
+            </div>
+          </div>
+
+          <div class="view-toggles">
+            <label class="toggle-checkbox" title="Exibir linhas de campo magnético vetorial">
+              <input type="checkbox" id="chkFieldLines" checked>
+              <span class="custom-chk"></span>
+              <span>Linhas B</span>
+            </label>
+            <label class="toggle-checkbox" title="Exibir fatias de 1mm do ímã">
+              <input type="checkbox" id="chkShowSlices" checked>
+              <span class="custom-chk"></span>
+              <span>Fatias 1mm</span>
+            </label>
+            <label class="toggle-checkbox" title="Exibir vetor de frenagem de Lenz">
+              <input type="checkbox" id="chkVectors" checked>
+              <span class="custom-chk"></span>
+              <span>Força Lenz</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Real-time Oscilloscope Panel (Compact) -->
+        <div class="oscilloscope-card">
+          <div class="scope-header">
+            <div class="scope-title-group">
+              <span class="scope-dot live"></span>
+              <h3>Osciloscópio Digital em Tempo Real</h3>
+            </div>
+            <div class="scope-legends">
+              <span class="legend ch1"><span class="legend-line yellow"></span> ℰ(t) Tensão [V]</span>
+              <span class="legend ch2"><span class="legend-line cyan"></span> I(t) Corrente [mA]</span>
+            </div>
+            <div class="scope-actions">
+              <button class="btn-scope-clear" id="btnClearScope" title="Limpar traçado">Limpar</button>
+            </div>
+          </div>
+          <div class="scope-display-wrapper">
+            <div class="scope-scale-gutter">
+              <span class="gutter-label top" id="scopeMaxY">+5.0 V</span>
+              <span class="gutter-label mid">0.0 V</span>
+              <span class="gutter-label bot" id="scopeMinY">-5.0 V</span>
+            </div>
+            <div class="scope-canvas-container">
+              <canvas id="scopeCanvas" width="880" height="110"></canvas>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- Right Column: Telemetry HUD, Circuit Switch & Physical Parameters -->
+      <aside class="sidebar-section">
+        
+        <!-- Live Telemetry Grid & LED Row -->
+        <div class="panel-card telemetry-card">
+          <h3 class="panel-title">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+            Telemetria em Tempo Real
+          </h3>
+          
+          <div class="telemetry-grid">
+            <div class="telemetry-item">
+              <span class="tel-label">Tensão Pico (ℰpico)</span>
+              <span class="tel-value highlight-yellow" id="telVPeak">0.00 V</span>
+            </div>
+            <div class="telemetry-item">
+              <span class="tel-label">Corrente Pico (Ipico)</span>
+              <span class="tel-value highlight-cyan" id="telIPeak">0.0 mA</span>
+            </div>
+            <div class="telemetry-item">
+              <span class="tel-label">Velocidade no Fundo (v)</span>
+              <span class="tel-value" id="telSpeed">0.00 m/s</span>
+            </div>
+            <div class="telemetry-item">
+              <span class="tel-label">Ângulo do Arco (θ)</span>
+              <span class="tel-value" id="telAngle">0.0°</span>
+            </div>
+            <div class="telemetry-item">
+              <span class="tel-label">Resistência Bobina</span>
+              <span class="tel-value highlight-amber" id="telRCoil">12.8 Ω</span>
+            </div>
+            <div class="telemetry-item">
+              <span class="tel-label">Fio Total Usado</span>
+              <span class="tel-value" id="telWireLength">37.4 m</span>
+            </div>
+          </div>
+
+          <!-- LEDs Status Pills -->
+          <div class="hud-led-row">
+            <div class="hud-led-box" id="hudLedRed">
+              <span class="led-bulb led-red"></span>
+              <div class="hud-led-info">
+                <span class="hud-led-title">LED 1 (Vermelho - Entrada)</span>
+                <span class="hud-led-state" id="statusLedRed">Apagado</span>
+              </div>
+            </div>
+            <div class="hud-led-box" id="hudLedGreen">
+              <span class="led-bulb led-green"></span>
+              <div class="hud-led-info">
+                <span class="hud-led-title">LED 2 (Verde - Saída)</span>
+                <span class="hud-led-state" id="statusLedGreen">Apagado</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Circuit Mode Switch (Switch) -->
+        <div class="panel-card switch-card">
+          <h3 class="panel-title">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="8" cy="12" r="3"/><line x1="16" y1="12" x2="16" y2="12"/></svg>
+            Chave Seletora de Circuito (Switch)
+          </h3>
+          <div class="mode-selector-grid">
+            <label class="mode-radio-card active" id="cardModeLeds">
+              <input type="radio" name="circuitMode" value="leds" checked>
+              <div class="mode-content">
+                <div class="mode-header-row">
+                  <span class="mode-badge badge-led">🔴🟢 LEDs Antiparalelos</span>
+                </div>
+                <p class="mode-desc">Acende LED 1 na entrada e LED 2 na saída (Lenz em ação). Sem resistor adicional.</p>
+              </div>
+            </label>
+
+            <label class="mode-radio-card" id="cardModeShort">
+              <input type="radio" name="circuitMode" value="short">
+              <div class="mode-content">
+                <div class="mode-header-row">
+                  <span class="mode-badge badge-short">⚡ Curto-Circuito (Lenz)</span>
+                </div>
+                <p class="mode-desc">Corrente máxima com frenagem eletromagnética instantânea.</p>
+              </div>
+            </label>
+
+            <label class="mode-radio-card" id="cardModeOpen">
+              <input type="radio" name="circuitMode" value="open">
+              <div class="mode-content">
+                <div class="mode-header-row">
+                  <span class="mode-badge badge-open">⭕ Circuito Aberto</span>
+                </div>
+                <p class="mode-desc">Sem passagem de corrente (I = 0). O balanço oscila livremente sem freio.</p>
+              </div>
+            </label>
+
+            <label class="mode-radio-card" id="cardModeResistor">
+              <input type="radio" name="circuitMode" value="resistor">
+              <div class="mode-content">
+                <div class="mode-header-row">
+                  <span class="mode-badge badge-res">🎚️ LEDs + Resistor</span>
+                </div>
+                <p class="mode-desc">Adiciona resistor em série para avaliar a perda de brilho.</p>
+              </div>
+            </label>
+          </div>
+
+          <div class="resistor-slider-container" id="resistorControl" style="display: none;">
+            <div class="slider-header">
+              <label for="slSeriesR">Resistor em Série (Rext):</label>
+              <span class="slider-val" id="valSeriesR">150 Ω</span>
+            </div>
+            <input type="range" id="slSeriesR" min="10" max="500" step="10" value="150" class="custom-slider">
+          </div>
+        </div>
+
+        <!-- Physical Parameters Adjustments (Limit R = 60 cm) -->
+        <div class="panel-card parameters-card">
+          <h3 class="panel-title">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+            Parâmetros da Estrutura
+          </h3>
+
+          <div class="param-row-2">
+            <div class="param-group">
+              <div class="slider-header">
+                <label for="slArmLength">Raio do Arco (R):</label>
+                <span class="slider-val" id="valArmLength">30 cm</span>
+              </div>
+              <!-- Limite superior ajustado para 60 cm -->
+              <input type="range" id="slArmLength" min="15" max="60" step="5" value="30" class="custom-slider">
+            </div>
+
+            <div class="param-group">
+              <div class="slider-header">
+                <label for="slArcSpan">Extensão do Arco:</label>
+                <span class="slider-val" id="valArcSpan">90°</span>
+              </div>
+              <input type="range" id="slArcSpan" min="45" max="180" step="5" value="90" class="custom-slider">
+            </div>
+          </div>
+
+          <div class="param-row-2">
+            <div class="param-group">
+              <div class="slider-header">
+                <label for="slAngle">Ângulo Inicial (θ₀):</label>
+                <span class="slider-val" id="valAngle">90°</span>
+              </div>
+              <input type="range" id="slAngle" min="15" max="90" step="5" value="90" class="custom-slider">
+            </div>
+
+            <div class="param-group">
+              <div class="slider-header">
+                <label for="slTurns">Espiras Bobina (N):</label>
+                <span class="slider-val" id="valTurns">1000</span>
+              </div>
+              <input type="range" id="slTurns" min="100" max="2500" step="50" value="1000" class="custom-slider">
+            </div>
+          </div>
+
+          <div class="param-row-2">
+            <div class="param-group">
+              <div class="slider-header">
+                <label for="slMagnetLength">Extensão Ímã (Arco):</label>
+                <span class="slider-val" id="valMagnetLength">10.0 cm</span>
+              </div>
+              <input type="range" id="slMagnetLength" min="3.0" max="15.0" step="1.0" value="10.0" class="custom-slider">
+            </div>
+
+            <div class="param-group">
+              <div class="slider-header">
+                <label for="slWireGauge">Bitola Fio (dfio):</label>
+                <span class="slider-val" id="valWireGauge">0.25 mm</span>
+              </div>
+              <input type="range" id="slWireGauge" min="0.10" max="0.50" step="0.05" value="0.25" class="custom-slider">
+            </div>
+          </div>
+
+          <div class="param-row-2">
+            <div class="param-group">
+              <div class="slider-header">
+                <label for="slMagnetDia">Diâmetro Ímã:</label>
+                <span class="slider-val" id="valMagnetDia">5.0 mm</span>
+              </div>
+              <input type="range" id="slMagnetDia" min="3.0" max="12.0" step="1.0" value="5.0" class="custom-slider">
+            </div>
+
+            <div class="param-group">
+              <div class="slider-header">
+                <label for="slCoilLength">Largura Bobina (wbob):</label>
+                <span class="slider-val" id="valCoilLength">2.0 cm</span>
+              </div>
+              <input type="range" id="slCoilLength" min="1.0" max="6.0" step="0.5" value="2.0" class="custom-slider">
+            </div>
+          </div>
+
+        </div>
+
+      </aside>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
