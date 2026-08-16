@@ -288,9 +288,9 @@
             <div class="param-group">
               <div class="slider-header">
                 <label for="slAngle">Ângulo Inicial (θ₀):</label>
-                <span class="slider-val" id="valAngle">90°</span>
+                <span class="slider-val" id="valAngle">45°</span>
               </div>
-              <input type="range" id="slAngle" min="15" max="90" step="5" value="90" class="custom-slider">
+              <input type="range" id="slAngle" min="5" max="45" step="1" value="45" class="custom-slider">
             </div>
 
             <div class="param-group">
@@ -335,6 +335,16 @@
                 <span class="slider-val" id="valCoilLength">2.0 cm</span>
               </div>
               <input type="range" id="slCoilLength" min="1.0" max="6.0" step="0.5" value="2.0" class="custom-slider">
+            </div>
+          </div>
+
+          <div class="param-row-2">
+            <div class="param-group param-group-full">
+              <div class="slider-header">
+                <label for="slAirDamping">Atrito com o Ar (b_ar):</label>
+                <span class="slider-val" id="valAirDamping">0.030</span>
+              </div>
+              <input type="range" id="slAirDamping" min="0.000" max="0.080" step="0.005" value="0.030" class="custom-slider">
             </div>
           </div>
 

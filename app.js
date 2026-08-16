@@ -13,16 +13,16 @@
   const G = 9.81;
   const RHO_CU = 1.68e-8;
   const BR_NEODYMIUM = 1.25;
-  const AIR_DAMPING = 0.032;
 
   // --- Estado da Simulação ---
   const state = {
     armLength: 0.30,
     arcSpan: 90,
-    initialAngle: 90,
-    theta: (90 * Math.PI) / 180,
+    initialAngle: 45,
+    theta: (45 * Math.PI) / 180,
     omega: 0.0,
     alpha: 0.0,
+    airDamping: 0.030, // Amortecimento do ar (ajustável de 0.000 a 0.080)
     
     magnetLength: 0.10,
     magnetDia: 0.005,
@@ -101,6 +101,7 @@
   const slMagnetDia = document.getElementById('slMagnetDia');
   const slCoilLength = document.getElementById('slCoilLength');
   const slSeriesR = document.getElementById('slSeriesR');
+  const slAirDamping = document.getElementById('slAirDamping');
 
   const valArmLength = document.getElementById('valArmLength');
   const valArcSpan = document.getElementById('valArcSpan');
@@ -111,6 +112,7 @@
   const valMagnetDia = document.getElementById('valMagnetDia');
   const valCoilLength = document.getElementById('valCoilLength');
   const valSeriesR = document.getElementById('valSeriesR');
+  const valAirDamping = document.getElementById('valAirDamping');
 
   const resistorControl = document.getElementById('resistorControl');
   const btnClearScope = document.getElementById('btnClearScope');
@@ -257,10 +259,7 @@
       }
     }
 
-    // Torque de Lenz: DEVE SE OPOR ao movimento (frenagem)
-    // Power dissipada = emf * current = -(dΦ/dz * v) * current
-    // Torque = Power / omega. Sinal correto: tauLenz = emf * current / omega (se omega≠0)
-    // Equivalente a: tauLenz = -(dΦ/dθ)^2 * omega / R_total  (sempre oposto a omega)
+    // Torque de Lenz: opõe-se à velocidade angular
     const dPhi_dtheta = dPhi_dz * state.armLength;
     const tauLenz = dPhi_dtheta * current;
 
@@ -272,13 +271,14 @@
 
     const R = state.armLength;
     const I_total = (state.magnetMass + state.ringMass) * Math.pow(R, 2);
+    const maxRad = (state.arcSpan * Math.PI) / (2 * 180);
 
     function getDerivatives(th, om) {
       const { emf, dPhi_dz } = computeElectromagneticInduction(th, om);
       const { tauLenz } = solveCircuitAndLenz(emf, dPhi_dz, om);
 
       const tauGrav = -(state.magnetMass + state.ringMass * 0.9) * G * R * Math.sin(th);
-      const tauAir = -AIR_DAMPING * Math.pow(R, 2) * om;
+      const tauAir = -state.airDamping * Math.pow(R, 2) * om;
       const totalTorque = tauGrav + tauAir + tauLenz;
 
       const alpha = totalTorque / I_total;
@@ -294,6 +294,15 @@
     state.omega += (dt / 6) * (k1.dOmega + 2 * k2.dOmega + 2 * k3.dOmega + k4.dOmega);
     state.alpha = k1.dOmega;
 
+    // Limite mecânico do arco: as extremidades do arco não ultrapassam a bobina
+    if (state.theta > maxRad) {
+      state.theta = maxRad;
+      if (state.omega > 0) state.omega = -0.25 * state.omega;
+    } else if (state.theta < -maxRad) {
+      state.theta = -maxRad;
+      if (state.omega < 0) state.omega = -0.25 * state.omega;
+    }
+
     const { emf, dPhi_dz } = computeElectromagneticInduction(state.theta, state.omega);
     const { current, ledRedOn, ledGreenOn } = solveCircuitAndLenz(emf, dPhi_dz, state.omega);
 
@@ -305,7 +314,7 @@
     // Peak hold com retenção de 1.5 segundos antes de decair
     if (Math.abs(emf) > state.vPeak) {
       state.vPeak = Math.abs(emf);
-      state.vPeakHoldTime = 90; // ~1.5s at 60fps
+      state.vPeakHoldTime = 90;
     }
     if (Math.abs(current * 1000) > state.iPeak) {
       state.iPeak = Math.abs(current * 1000);
@@ -362,6 +371,7 @@
     const coilH_px = Math.max(28, state.coilInnerDia * pxPerMeter * 2.2);
     drawCoilAssembly(coilX, coilY, coilW_px, coilH_px);
 
+    // Estrutura em arco com as duas hastes nas extremidades (sem linha central)
     drawMetallicArcFrame(pivotX, pivotY, armPx, state.theta, state.arcSpan);
 
     if (state.showFieldLines) {
@@ -404,10 +414,7 @@
     simCtx.arc(px, py, 52, Math.PI * 0.1, Math.PI * 0.9);
     simCtx.stroke();
 
-    // Transferidor: usa a mesma convenção do rotate():
-    // ang=0 → arm straight down, ang>0 → clockwise (renders left on screen)
     for (let ang = -90; ang <= 90; ang += 15) {
-      // map ang to canvas angle: straight down = PI/2, clockwise = increasing
       const rad = Math.PI / 2 + (ang * Math.PI) / 180;
       const x1 = px + 48 * Math.cos(rad);
       const y1 = py + 48 * Math.sin(rad);
@@ -471,13 +478,9 @@
     const startAng = Math.PI / 2 - spanRad / 2;
     const endAng = Math.PI / 2 + spanRad / 2;
 
-    simCtx.strokeStyle = 'rgba(148, 163, 184, 0.45)';
-    simCtx.lineWidth = 1.8;
-
-    simCtx.beginPath();
-    simCtx.moveTo(0, 0);
-    simCtx.lineTo(0, r);
-    simCtx.stroke();
+    // Hastes metálicas de sustentação nas duas extremidades do arco (sem traço central)
+    simCtx.strokeStyle = 'rgba(148, 163, 184, 0.65)';
+    simCtx.lineWidth = 2.0;
 
     simCtx.beginPath();
     simCtx.moveTo(0, 0);
@@ -486,6 +489,14 @@
     simCtx.lineTo(r * Math.cos(endAng), r * Math.sin(endAng));
     simCtx.stroke();
 
+    // Pino nas junções com o arco
+    simCtx.fillStyle = '#cbd5e1';
+    simCtx.beginPath();
+    simCtx.arc(r * Math.cos(startAng), r * Math.sin(startAng), 3, 0, Math.PI * 2);
+    simCtx.arc(r * Math.cos(endAng), r * Math.sin(endAng), 3, 0, Math.PI * 2);
+    simCtx.fill();
+
+    // Arco metálico curvo
     const arcGrad = simCtx.createLinearGradient(-r, 0, r, r);
     arcGrad.addColorStop(0, '#94a3b8');
     arcGrad.addColorStop(0.3, '#f1f5f9');
@@ -494,7 +505,7 @@
     arcGrad.addColorStop(1, '#94a3b8');
 
     simCtx.strokeStyle = arcGrad;
-    simCtx.lineWidth = 3.5;
+    simCtx.lineWidth = 3.8;
     simCtx.beginPath();
     simCtx.arc(0, 0, r, startAng, endAng, false);
     simCtx.stroke();
@@ -846,7 +857,7 @@
   }
 
   // ==========================================================================
-  // 4. LOOP PRINCIPAL (amostragem do scope 1×/frame para janela temporal longa)
+  // 4. LOOP PRINCIPAL (amostragem do scope 1×/frame para janela temporal de ~8s)
   // ==========================================================================
 
   function mainLoop(now) {
@@ -860,8 +871,6 @@
         state.simTime += dt;
       }
 
-      // Amostragem do osciloscópio 1× por frame (não por sub-passo)
-      // Com 480 samples a 60fps → janela de ~8 segundos
       scopeBuffer.push({
         emf: state.emf,
         current: state.current * 1000,
@@ -890,23 +899,19 @@
   }
 
   // ==========================================================================
-  // 5. INTERATIVIDADE MOUSE / TOUCH — COORDENADAS CORRETAS
+  // 5. INTERATIVIDADE MOUSE / TOUCH COM LIMITES MECÂNICOS
   // ==========================================================================
 
   function getCanvasCoords(e) {
     const rect = simCanvas.getBoundingClientRect();
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-    // Retorna em CSS pixels (não canvas pixels) — simW/simH já estão em CSS px
     return {
       x: ((clientX - rect.left) / rect.width) * simW,
       y: ((clientY - rect.top) / rect.height) * simH
     };
   }
 
-  // Canvas rotate(theta) maps local (0, r) to world:
-  //   x_world = pivotX + 0*cos(theta) - r*sin(theta) = pivotX - r*sin(theta)
-  //   y_world = pivotY + 0*sin(theta) + r*cos(theta) = pivotY + r*cos(theta)
   function getMagnetWorldPos() {
     const pivotX = simW / 2;
     const pivotY = simH * 0.11;
@@ -922,9 +927,9 @@
   function anglFromMouse(x, y) {
     const pivotX = simW / 2;
     const pivotY = simH * 0.11;
-    // atan2(-(x-px), y-py) matches canvas rotate() convention
+    const maxRad = (state.arcSpan * Math.PI) / (2 * 180);
     let a = Math.atan2(-(x - pivotX), y - pivotY);
-    return Math.max(-1.57, Math.min(1.57, a));
+    return Math.max(-maxRad, Math.min(maxRad, a));
   }
 
   function syncAngleUI(targetAngle) {
@@ -1012,7 +1017,6 @@
     state.vPeak = 0.0;
     state.iPeak = 0.0;
     scopeBuffer.length = 0;
-    // Auto-play ao soltar
     if (!state.isPlaying) {
       state.isPlaying = true;
       iconPlay.classList.add('hidden');
@@ -1064,6 +1068,16 @@
   slArcSpan.addEventListener('input', (e) => {
     state.arcSpan = parseInt(e.target.value, 10);
     valArcSpan.textContent = `${state.arcSpan}°`;
+    
+    // Limita o ângulo de soltura à metade da extensão do arco
+    const maxAllowedAngle = Math.floor(state.arcSpan / 2);
+    slAngle.max = maxAllowedAngle;
+    if (state.initialAngle > maxAllowedAngle) {
+      state.initialAngle = maxAllowedAngle;
+      slAngle.value = maxAllowedAngle;
+      valAngle.textContent = `${maxAllowedAngle}°`;
+      state.theta = (state.initialAngle * Math.PI) / 180;
+    }
     updateCoilSpecs();
   });
 
@@ -1109,27 +1123,32 @@
     valSeriesR.textContent = `${state.seriesResistor} Ω`;
   });
 
+  slAirDamping.addEventListener('input', (e) => {
+    state.airDamping = parseFloat(e.target.value);
+    valAirDamping.textContent = state.airDamping === 0 ? '0.000 (Vácuo)' : state.airDamping.toFixed(3);
+  });
+
   // Presets
   const presets = {
     compact: {
-      armLength: 30, arcSpan: 90, angle: 90, turns: 1000,
+      armLength: 30, arcSpan: 90, angle: 45, turns: 1000,
       wireGauge: 0.25, magnetLength: 10.0, magnetDia: 5.0,
-      coilLength: 2.0, mode: 'leds'
+      coilLength: 2.0, mode: 'leds', airDamping: 0.030
     },
     long: {
-      armLength: 60, arcSpan: 90, angle: 90, turns: 1500,
+      armLength: 60, arcSpan: 90, angle: 45, turns: 1500,
       wireGauge: 0.25, magnetLength: 12.0, magnetDia: 6.0,
-      coilLength: 2.5, mode: 'leds'
+      coilLength: 2.5, mode: 'leds', airDamping: 0.030
     },
     lenz: {
-      armLength: 30, arcSpan: 90, angle: 90, turns: 1200,
+      armLength: 30, arcSpan: 90, angle: 45, turns: 1200,
       wireGauge: 0.35, magnetLength: 10.0, magnetDia: 6.0,
-      coilLength: 2.0, mode: 'short'
+      coilLength: 2.0, mode: 'short', airDamping: 0.030
     },
     resistor: {
-      armLength: 30, arcSpan: 90, angle: 90, turns: 1000,
+      armLength: 30, arcSpan: 90, angle: 45, turns: 1000,
       wireGauge: 0.25, magnetLength: 10.0, magnetDia: 5.0,
-      coilLength: 2.0, mode: 'resistor', resistor: 150
+      coilLength: 2.0, mode: 'resistor', resistor: 150, airDamping: 0.030
     }
   };
 
@@ -1145,10 +1164,14 @@
     valArcSpan.textContent = `${p.arcSpan}°`;
     state.arcSpan = p.arcSpan;
 
-    slAngle.value = p.angle;
-    valAngle.textContent = `${p.angle}°`;
-    state.initialAngle = p.angle;
-    state.theta = (p.angle * Math.PI) / 180;
+    const maxAllowedAngle = Math.floor(p.arcSpan / 2);
+    slAngle.max = maxAllowedAngle;
+    const safeAngle = Math.min(p.angle, maxAllowedAngle);
+
+    slAngle.value = safeAngle;
+    valAngle.textContent = `${safeAngle}°`;
+    state.initialAngle = safeAngle;
+    state.theta = (safeAngle * Math.PI) / 180;
     state.omega = 0.0;
 
     slTurns.value = p.turns;
@@ -1170,6 +1193,12 @@
     slCoilLength.value = p.coilLength;
     valCoilLength.textContent = `${p.coilLength.toFixed(1)} cm`;
     state.coilLength = p.coilLength / 100.0;
+
+    if (p.airDamping !== undefined) {
+      state.airDamping = p.airDamping;
+      slAirDamping.value = p.airDamping;
+      valAirDamping.textContent = state.airDamping === 0 ? '0.000 (Vácuo)' : state.airDamping.toFixed(3);
+    }
 
     state.circuitMode = p.mode;
     modeCards.forEach((c) => {
@@ -1206,7 +1235,6 @@
   });
 
   // --- Inicialização ---
-  // Corrige o ícone play/pause para refletir estado real (simulação começa rodando)
   iconPlay.classList.add('hidden');
   iconPause.classList.remove('hidden');
   labelPlayPause.textContent = 'Pausar';

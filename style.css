@@ -53,7 +53,7 @@ html, body {
 }
 
 /* ==========================================================================
-   DESKTOP WIDESCREEN 16:9 (Zero-Scroll Fullscreen, Compact Density)
+   DESKTOP WIDESCREEN 16:9 (Zero-Scroll Fullscreen, Balanced Density)
    ========================================================================== */
 @media (min-width: 1025px) and (min-height: 560px) {
   html, body {
@@ -64,16 +64,16 @@ html, body {
   .app-container {
     width: 100%;
     height: 100vh;
-    padding: 6px 10px 6px 10px;
+    padding: 6px 12px 6px 12px;
     display: grid;
     grid-template-rows: auto 1fr;
-    gap: 5px;
+    gap: 6px;
   }
 
   .main-layout {
     display: grid;
-    grid-template-columns: 1fr 340px;
-    gap: 6px;
+    grid-template-columns: 1fr 360px;
+    gap: 8px;
     height: 100%;
     min-height: 0;
     overflow: hidden;
@@ -82,7 +82,7 @@ html, body {
   .simulation-section {
     display: grid;
     grid-template-rows: 1fr auto auto;
-    gap: 5px;
+    gap: 6px;
     height: 100%;
     min-height: 0;
   }
@@ -105,14 +105,14 @@ html, body {
   }
 
   .oscilloscope-card {
-    height: 110px;
+    height: 112px;
     flex-shrink: 0;
   }
 
   .sidebar-section {
     display: flex;
     flex-direction: column;
-    gap: 5px;
+    gap: 6px;
     height: 100%;
     min-height: 0;
     overflow-y: auto;
@@ -223,10 +223,10 @@ html, body {
   -webkit-backdrop-filter: var(--glass-blur);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
-  padding: 5px 12px;
+  padding: 6px 12px;
   box-shadow: var(--shadow-sm);
   gap: 10px;
-  min-height: 38px;
+  min-height: 40px;
 }
 
 .header-brand {
@@ -236,8 +236,8 @@ html, body {
 }
 
 .logo-icon {
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  height: 28px;
   border-radius: var(--radius-sm);
   background: linear-gradient(135deg, rgba(0, 229, 255, 0.15), rgba(41, 121, 255, 0.25));
   border: 1px solid rgba(0, 229, 255, 0.3);
@@ -248,10 +248,10 @@ html, body {
   flex-shrink: 0;
 }
 
-.logo-icon svg { width: 16px; height: 16px; }
+.logo-icon svg { width: 17px; height: 17px; }
 
 .title-group h1 {
-  font-size: 0.88rem;
+  font-size: 0.94rem;
   font-weight: 700;
   letter-spacing: -0.02em;
   color: var(--text-primary);
@@ -259,7 +259,7 @@ html, body {
 }
 
 .subtitle {
-  font-size: 0.64rem;
+  font-size: 0.70rem;
   color: var(--text-secondary);
   line-height: 1;
 }
@@ -271,7 +271,7 @@ html, body {
 }
 
 .preset-label {
-  font-size: 0.64rem;
+  font-size: 0.68rem;
   font-weight: 600;
   color: var(--text-muted);
   text-transform: uppercase;
@@ -282,9 +282,9 @@ html, body {
   background: rgba(255, 255, 255, 0.04);
   color: var(--text-secondary);
   border: 1px solid var(--border-subtle);
-  padding: 3px 8px;
+  padding: 4px 9px;
   border-radius: var(--radius-sm);
-  font-size: 0.70rem;
+  font-size: 0.74rem;
   font-weight: 500;
   cursor: pointer;
   display: inline-flex;
@@ -306,7 +306,7 @@ html, body {
 }
 
 .preset-tag {
-  font-size: 0.54rem;
+  font-size: 0.58rem;
   background: var(--accent-cyan);
   color: #000;
   font-weight: 700;
@@ -329,25 +329,25 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 4px 10px;
+  padding: 5px 12px;
   border-bottom: 1px solid var(--border-subtle);
   background: rgba(0, 0, 0, 0.3);
-  font-size: 0.66rem;
+  font-size: 0.72rem;
   flex-shrink: 0;
-  min-height: 24px;
+  min-height: 26px;
 }
 
 .canvas-status-badge {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   color: var(--text-secondary);
   font-weight: 500;
 }
 
 .status-pulse {
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background: var(--accent-cyan);
   box-shadow: 0 0 5px var(--accent-cyan);
@@ -364,7 +364,7 @@ html, body {
   align-items: center;
   gap: 4px;
   color: var(--text-muted);
-  font-size: 0.62rem;
+  font-size: 0.68rem;
 }
 
 .canvas-wrapper {
@@ -395,7 +395,7 @@ html, body {
   padding: 4px 10px;
   gap: 6px;
   flex-shrink: 0;
-  min-height: 32px;
+  min-height: 34px;
 }
 
 .playback-controls {
@@ -408,16 +408,16 @@ html, body {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid var(--border-subtle);
   color: var(--text-primary);
-  padding: 3px 8px;
+  padding: 4px 9px;
   border-radius: var(--radius-sm);
-  font-size: 0.70rem;
+  font-size: 0.74rem;
   font-weight: 500;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
   transition: all 0.15s ease;
-  min-height: 26px;
+  min-height: 28px;
 }
 
 .btn-ctrl:hover { background: rgba(255, 255, 255, 0.1); }
@@ -440,7 +440,7 @@ html, body {
 }
 
 .ctrl-label {
-  font-size: 0.66rem;
+  font-size: 0.70rem;
   color: var(--text-muted);
   font-weight: 500;
 }
@@ -457,8 +457,8 @@ html, body {
   background: transparent;
   border: none;
   color: var(--text-secondary);
-  padding: 2px 5px;
-  font-size: 0.64rem;
+  padding: 3px 6px;
+  font-size: 0.68rem;
   font-family: var(--font-mono);
   border-radius: 3px;
   cursor: pointer;
@@ -483,7 +483,7 @@ html, body {
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: 0.66rem;
+  font-size: 0.70rem;
   color: var(--text-secondary);
   cursor: pointer;
   user-select: none;
@@ -492,8 +492,8 @@ html, body {
 .toggle-checkbox input { display: none; }
 
 .custom-chk {
-  width: 12px;
-  height: 12px;
+  width: 13px;
+  height: 13px;
   border-radius: 3px;
   border: 1px solid var(--text-muted);
   background: rgba(255, 255, 255, 0.05);
@@ -534,7 +534,7 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 0.66rem;
+  font-size: 0.70rem;
 }
 
 .scope-title-group {
@@ -544,7 +544,7 @@ html, body {
 }
 
 .scope-title-group h3 {
-  font-size: 0.72rem;
+  font-size: 0.76rem;
   font-weight: 600;
   color: var(--text-primary);
 }
@@ -572,8 +572,8 @@ html, body {
 .legend {
   display: flex;
   align-items: center;
-  gap: 3px;
-  font-size: 0.64rem;
+  gap: 4px;
+  font-size: 0.68rem;
   font-family: var(--font-mono);
   color: var(--text-secondary);
 }
@@ -593,7 +593,7 @@ html, body {
   color: var(--text-muted);
   padding: 1px 6px;
   border-radius: 3px;
-  font-size: 0.62rem;
+  font-size: 0.64rem;
   cursor: pointer;
 }
 
@@ -601,7 +601,7 @@ html, body {
 
 .scope-display-wrapper {
   display: grid;
-  grid-template-columns: 36px 1fr 36px;
+  grid-template-columns: 38px 1fr 38px;
   background: #04060a;
   border: 1px solid rgba(0, 229, 255, 0.15);
   border-radius: var(--radius-sm);
@@ -620,7 +620,7 @@ html, body {
 }
 
 .gutter-label {
-  font-size: 0.56rem;
+  font-size: 0.60rem;
   font-family: var(--font-mono);
   color: rgba(255, 255, 255, 0.4);
   line-height: 1;
@@ -635,8 +635,8 @@ html, body {
   padding: 2px 4px 2px 3px;
 }
 
-.gutter-label.highlight-yellow { color: rgba(255, 214, 0, 0.55); }
-.gutter-label.highlight-cyan { color: rgba(0, 229, 255, 0.55); }
+.gutter-label.highlight-yellow { color: rgba(255, 214, 0, 0.65); }
+.gutter-label.highlight-cyan { color: rgba(0, 229, 255, 0.65); }
 
 .scope-canvas-container {
   position: relative;
@@ -667,7 +667,7 @@ html, body {
 }
 
 .panel-title {
-  font-size: 0.72rem;
+  font-size: 0.76rem;
   font-weight: 600;
   color: var(--text-primary);
   display: flex;
@@ -693,11 +693,11 @@ html, body {
   background: rgba(0, 0, 0, 0.35);
   border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: var(--radius-sm);
-  padding: 3px 5px;
+  padding: 4px 6px;
 }
 
 .tel-label {
-  font-size: 0.56rem;
+  font-size: 0.60rem;
   color: var(--text-muted);
   font-weight: 500;
   white-space: nowrap;
@@ -706,7 +706,7 @@ html, body {
 
 .tel-value {
   font-family: var(--font-mono);
-  font-size: 0.78rem;
+  font-size: 0.82rem;
   font-weight: 700;
   color: var(--text-primary);
   display: block;
@@ -731,15 +731,15 @@ html, body {
   background: rgba(0, 0, 0, 0.3);
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: var(--radius-sm);
-  padding: 3px 6px;
+  padding: 4px 7px;
   display: flex;
   align-items: center;
   gap: 6px;
 }
 
 .led-bulb {
-  width: 10px;
-  height: 10px;
+  width: 11px;
+  height: 11px;
   border-radius: 50%;
   flex-shrink: 0;
   transition: all 0.08s ease-out;
@@ -762,14 +762,14 @@ html, body {
 .hud-led-info { display: flex; flex-direction: column; }
 
 .hud-led-title {
-  font-size: 0.60rem;
+  font-size: 0.64rem;
   font-weight: 600;
   color: var(--text-primary);
   line-height: 1.2;
 }
 
 .hud-led-state {
-  font-size: 0.56rem;
+  font-size: 0.60rem;
   font-family: var(--font-mono);
   color: var(--text-muted);
 }
@@ -803,14 +803,14 @@ html, body {
 }
 
 .mode-badge {
-  font-size: 0.66rem;
+  font-size: 0.70rem;
   font-weight: 600;
   color: var(--text-primary);
   display: block;
 }
 
 .mode-desc {
-  font-size: 0.56rem;
+  font-size: 0.60rem;
   color: var(--text-muted);
   line-height: 1.2;
   margin-top: 1px;
@@ -822,34 +822,48 @@ html, body {
   border-top: 1px solid var(--border-subtle);
 }
 
-/* Parameters */
+/* Parameters Card - Espaçamento Aprimorado */
+.parameters-card {
+  padding: 7px 10px 8px 10px;
+}
+
 .param-row-2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 6px;
-  margin-bottom: 4px;
+  gap: 8px;
+  margin-bottom: 6px;
 }
 
-.param-row-2:last-child { margin-bottom: 0; }
+.param-row-2:last-child {
+  margin-bottom: 0;
+}
 
-.param-group { display: flex; flex-direction: column; }
+.param-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.param-group-full {
+  grid-column: 1 / -1;
+}
 
 .slider-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1px;
+  margin-bottom: 2px;
 }
 
 .slider-header label {
-  font-size: 0.62rem;
+  font-size: 0.66rem;
   color: var(--text-secondary);
   font-weight: 500;
 }
 
 .slider-val {
   font-family: var(--font-mono);
-  font-size: 0.64rem;
+  font-size: 0.68rem;
   font-weight: 700;
   color: var(--accent-cyan);
 }
@@ -858,8 +872,8 @@ html, body {
   -webkit-appearance: none;
   appearance: none;
   width: 100%;
-  height: 4px;
-  border-radius: 2px;
+  height: 5px;
+  border-radius: 3px;
   background: rgba(255, 255, 255, 0.12);
   outline: none;
   cursor: pointer;
@@ -868,8 +882,8 @@ html, body {
 .custom-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 12px;
-  height: 12px;
+  width: 13px;
+  height: 13px;
   border-radius: 50%;
   background: var(--accent-cyan);
   cursor: pointer;
