@@ -76,9 +76,12 @@
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></svg>
               <span>Passo</span>
             </button>
-            <button class="btn-ctrl" id="btnRelease" title="Soltar do ângulo inicial">
+          </div>
+
+          <div class="release-controls">
+            <button class="btn-ctrl btn-release-armed" id="btnRelease" title="Segure para armar na posição inicial e solte para reiniciar o movimento">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-              <span>Soltar (θ₀)</span>
+              <span id="labelRelease">Reiniciar (θ₀)</span>
             </button>
           </div>
 
@@ -165,7 +168,7 @@
               <span class="tel-value highlight-cyan" id="telIPeak">0.0 mA</span>
             </div>
             <div class="telemetry-item">
-              <span class="tel-label">Velocidade Instantânea (v)</span>
+              <span class="tel-label">Velocidade Instant. (v)</span>
               <span class="tel-value" id="telSpeed">0.00 m/s</span>
             </div>
             <div class="telemetry-item">
@@ -288,9 +291,9 @@
             <div class="param-group">
               <div class="slider-header">
                 <label for="slAngle">Ângulo Inicial (θ₀):</label>
-                <span class="slider-val" id="valAngle">45°</span>
+                <span class="slider-val" id="valAngle">39°</span>
               </div>
-              <input type="range" id="slAngle" min="5" max="45" step="1" value="45" class="custom-slider">
+              <input type="range" id="slAngle" min="5" max="39" step="1" value="39" class="custom-slider">
             </div>
 
             <div class="param-group">

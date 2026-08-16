@@ -18,8 +18,8 @@
   const state = {
     armLength: 0.30,
     arcSpan: 90,
-    initialAngle: 45,
-    theta: (45 * Math.PI) / 180,
+    initialAngle: 39,
+    theta: (39 * Math.PI) / 180,
     omega: 0.0,
     alpha: 0.0,
     airDamping: 0.030, // Amortecimento do ar (ajustável de 0.000 a 0.080)
@@ -151,8 +151,24 @@
   });
 
   // ==========================================================================
-  // 1. MOTOR DE CÁLCULO FÍSICO
+  // 1. LIMITES MECÂNICOS & MOTOR DE CÁLCULO FÍSICO
   // ==========================================================================
+
+  // Limite angular exato: a haste/pino na extremidade do arco para antes da flange externa da bobina
+  function getMaxAllowedAngleRad() {
+    const armPx = (typeof getPixelRadius === 'function') ? getPixelRadius() : (state.armLength * 550);
+    const pxPerMeter = armPx / Math.max(0.05, state.armLength);
+    const coilW_px = Math.max(24, state.coilLength * pxPerMeter * 1.3);
+    const flangeClearance_px = coilW_px / 2 + 7; // borda externa da bobina + flange + pino de articulação
+    const safeRatio = Math.min(0.95, flangeClearance_px / Math.max(20, armPx));
+    const coilBoundaryRad = Math.asin(safeRatio);
+    const halfArcRad = (state.arcSpan * Math.PI) / (2 * 180);
+    return Math.max(0.05, halfArcRad - coilBoundaryRad);
+  }
+
+  function getMaxAllowedAngleDeg() {
+    return (getMaxAllowedAngleRad() * 180) / Math.PI;
+  }
 
   function updateCoilSpecs() {
     // Garantia: diâmetro interno da bobina >= diâmetro do ímã + folga de 3mm
@@ -180,6 +196,20 @@
 
     telRCoil.textContent = `${state.coilResistance.toFixed(1)} Ω`;
     telWireLength.textContent = `${state.wireLength.toFixed(1)} m`;
+
+    // Atualiza limite máximo do slider de ângulo inicial baseado na largura da bobina
+    const maxDeg = Math.floor(getMaxAllowedAngleDeg());
+    slAngle.max = maxDeg;
+    if (state.initialAngle > maxDeg) {
+      state.initialAngle = maxDeg;
+      slAngle.value = maxDeg;
+      valAngle.textContent = `${maxDeg}°`;
+    }
+    const maxRad = getMaxAllowedAngleRad();
+    if (Math.abs(state.theta) > maxRad) {
+      state.theta = Math.sign(state.theta) * maxRad;
+      state.omega = 0.0;
+    }
 
     // Atualiza status badge dinamicamente
     const numSlices = Math.round(state.magnetLength / state.sliceThickness);
@@ -271,7 +301,7 @@
 
     const R = state.armLength;
     const I_total = (state.magnetMass + state.ringMass) * Math.pow(R, 2);
-    const maxRad = (state.arcSpan * Math.PI) / (2 * 180);
+    const maxRad = getMaxAllowedAngleRad();
 
     function getDerivatives(th, om) {
       const { emf, dPhi_dz } = computeElectromagneticInduction(th, om);
@@ -294,7 +324,7 @@
     state.omega += (dt / 6) * (k1.dOmega + 2 * k2.dOmega + 2 * k3.dOmega + k4.dOmega);
     state.alpha = k1.dOmega;
 
-    // Limite mecânico do arco: as extremidades do arco não ultrapassam a bobina
+    // Limite mecânico: a extremidade do arco não ultrapassa a extremidade da largura da bobina
     if (state.theta > maxRad) {
       state.theta = maxRad;
       if (state.omega > 0) state.omega = -0.25 * state.omega;
@@ -364,12 +394,13 @@
     const coilX = pivotX;
     const coilY = pivotY + armPx;
 
-    drawStandAndProtractor(pivotX, pivotY);
-    drawWorkbench(w, coilY + 34);
-
     const coilW_px = Math.max(24, state.coilLength * pxPerMeter * 1.3);
     const coilH_px = Math.max(28, state.coilInnerDia * pxPerMeter * 2.2);
-    drawCoilAssembly(coilX, coilY, coilW_px, coilH_px);
+    const benchY = coilY + coilH_px / 2 + 36;
+
+    drawStandAndProtractor(pivotX, pivotY);
+    drawWorkbench(w, benchY);
+    drawCoilAssembly(coilX, coilY, coilW_px, coilH_px, benchY);
 
     // Estrutura em arco com as duas hastes nas extremidades (sem linha central)
     drawMetallicArcFrame(pivotX, pivotY, armPx, state.theta, state.arcSpan);
@@ -428,8 +459,8 @@
       simCtx.stroke();
 
       if (Math.abs(ang) % 30 === 0) {
-        simCtx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-        simCtx.font = '9px "JetBrains Mono"';
+        simCtx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+        simCtx.font = '10px "JetBrains Mono"';
         simCtx.textAlign = 'center';
         simCtx.fillText(`${Math.abs(ang)}°`, px + 66 * Math.cos(rad), py + 66 * Math.sin(rad) + 3);
       }
@@ -478,7 +509,18 @@
     const startAng = Math.PI / 2 - spanRad / 2;
     const endAng = Math.PI / 2 + spanRad / 2;
 
-    // Hastes metálicas de sustentação nas duas extremidades do arco (sem traço central)
+    // Eixo central de referência angular (linha tracejada indicadora de ângulo)
+    simCtx.save();
+    simCtx.strokeStyle = 'rgba(0, 229, 255, 0.45)';
+    simCtx.lineWidth = 1.4;
+    simCtx.setLineDash([4, 4]);
+    simCtx.beginPath();
+    simCtx.moveTo(0, 0);
+    simCtx.lineTo(0, r);
+    simCtx.stroke();
+    simCtx.restore();
+
+    // Hastes metálicas de sustentação nas duas extremidades do arco
     simCtx.strokeStyle = 'rgba(148, 163, 184, 0.65)';
     simCtx.lineWidth = 2.0;
 
@@ -570,7 +612,7 @@
     const midAngleS = startAngle + totalAngle * 0.75;
 
     simCtx.fillStyle = '#ffffff';
-    simCtx.font = 'bold 9px "JetBrains Mono"';
+    simCtx.font = 'bold 10px "JetBrains Mono"';
     simCtx.textAlign = 'center';
     simCtx.textBaseline = 'middle';
     simCtx.fillText('N', r * Math.cos(midAngleN), r * Math.sin(midAngleN));
@@ -611,14 +653,16 @@
     simCtx.restore();
   }
 
-  function drawCoilAssembly(cx, cy, cw, ch) {
+  function drawCoilAssembly(cx, cy, cw, ch, benchY) {
     simCtx.save();
 
+    // Suporte vertical descendo até a bancada
     simCtx.fillStyle = '#1e293b';
     simCtx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
     simCtx.lineWidth = 1;
     simCtx.beginPath();
-    simCtx.roundRect(cx - 10, cy + ch / 2, 20, 32, 2);
+    const supportHeight = benchY ? (benchY - (cy + ch / 2)) : 32;
+    simCtx.roundRect(cx - 12, cy + ch / 2, 24, supportHeight, 2);
     simCtx.fill();
     simCtx.stroke();
 
@@ -660,26 +704,29 @@
     simCtx.fill();
     simCtx.stroke();
 
-    const ledBaseY = cy + ch / 2 + 14;
-    const ledRedX = cx - 26;
-    const ledGreenX = cx + 26;
+    // LEDs montados diretamente sobre a barra da bancada (sem flutuar)
+    const ledBaseY = benchY - 2;
+    const ledRedX = cx - 36;
+    const ledGreenX = cx + 36;
 
-    simCtx.strokeStyle = 'rgba(245, 158, 11, 0.5)';
-    simCtx.lineWidth = 1;
+    // Fios de cobre conectados da bobina até os terminais dos LEDs na bancada
+    simCtx.strokeStyle = 'rgba(245, 158, 11, 0.7)';
+    simCtx.lineWidth = 1.2;
     simCtx.beginPath();
     simCtx.moveTo(cx - cw / 2, cy + ch / 4);
-    simCtx.lineTo(ledRedX, ledBaseY);
+    simCtx.lineTo(ledRedX, ledBaseY - 12);
     simCtx.moveTo(cx + cw / 2, cy + ch / 4);
-    simCtx.lineTo(ledGreenX, ledBaseY);
+    simCtx.lineTo(ledGreenX, ledBaseY - 12);
     simCtx.stroke();
 
     drawPhysicalLed(ledRedX, ledBaseY, '#ff1744', state.ledRedBrightness, 'LED 1');
     drawPhysicalLed(ledGreenX, ledBaseY, '#00e676', state.ledGreenBrightness, 'LED 2');
 
-    simCtx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-    simCtx.font = '9px "JetBrains Mono"';
+    // Texto descritivo da bobina posicionado ABAIXO da barra horizontal
+    simCtx.fillStyle = 'rgba(255, 255, 255, 0.75)';
+    simCtx.font = '10px "JetBrains Mono"';
     simCtx.textAlign = 'center';
-    simCtx.fillText(`Bobina: ${state.turns} espiras • ${state.coilResistance.toFixed(1)} Ω`, cx, cy + ch / 2 + 34);
+    simCtx.fillText(`Bobina: ${state.turns} espiras • ${state.coilResistance.toFixed(1)} Ω`, cx, benchY + 18);
 
     simCtx.restore();
   }
@@ -687,42 +734,61 @@
   function drawPhysicalLed(x, y, color, glow, label) {
     simCtx.save();
 
+    // Soquete / suporte de fixação metálico parafusado na bancada
+    simCtx.fillStyle = '#1e293b';
+    simCtx.strokeStyle = '#475569';
+    simCtx.lineWidth = 1;
+    simCtx.beginPath();
+    simCtx.roundRect(x - 8, y - 3, 16, 5, 1);
+    simCtx.fill();
+    simCtx.stroke();
+
+    // Parafusos de fixação na bancada
+    simCtx.fillStyle = '#94a3b8';
+    simCtx.fillRect(x - 6, y - 1, 2, 2);
+    simCtx.fillRect(x + 4, y - 1, 2, 2);
+
+    // Efeito de brilho / glow do LED aceso
     if (glow > 0.05) {
-      const radGlow = simCtx.createRadialGradient(x, y, 2, x, y, 24 * glow);
+      const radGlow = simCtx.createRadialGradient(x, y - 10, 3, x, y - 10, 34 * glow);
       radGlow.addColorStop(0, color);
       radGlow.addColorStop(0.4, color);
       radGlow.addColorStop(1, 'transparent');
       simCtx.fillStyle = radGlow;
       simCtx.beginPath();
-      simCtx.arc(x, y, 24 * glow, 0, Math.PI * 2);
+      simCtx.arc(x, y - 10, 34 * glow, 0, Math.PI * 2);
       simCtx.fill();
     }
 
+    // Base interna do LED
     simCtx.fillStyle = '#0f172a';
-    simCtx.fillRect(x - 4, y + 2, 8, 2);
+    simCtx.fillRect(x - 6.5, y - 5, 13, 3);
 
+    // Corpo / bulbo do LED ampliado (cúpula)
     simCtx.fillStyle = glow > 0.1 ? '#ffffff' : color;
     simCtx.strokeStyle = color;
-    simCtx.lineWidth = 1.0;
+    simCtx.lineWidth = 1.3;
 
     if (glow > 0.1) {
       simCtx.shadowColor = color;
-      simCtx.shadowBlur = 14 * glow;
+      simCtx.shadowBlur = 18 * glow;
     }
 
     simCtx.beginPath();
-    simCtx.arc(x, y - 1, 4.5, Math.PI, 0, false);
-    simCtx.lineTo(x + 4.5, y + 2);
-    simCtx.lineTo(x - 4.5, y + 2);
+    simCtx.arc(x, y - 10, 7.5, Math.PI, 0, false);
+    simCtx.lineTo(x + 7.5, y - 5);
+    simCtx.lineTo(x - 7.5, y - 5);
     simCtx.closePath();
     simCtx.fill();
     simCtx.stroke();
 
     simCtx.shadowBlur = 0;
-    simCtx.fillStyle = glow > 0.1 ? color : 'rgba(255, 255, 255, 0.4)';
-    simCtx.font = '8px "JetBrains Mono"';
+
+    // Rótulo do LED (LED 1 / LED 2)
+    simCtx.fillStyle = glow > 0.1 ? color : 'rgba(255, 255, 255, 0.6)';
+    simCtx.font = 'bold 8.5px "JetBrains Mono"';
     simCtx.textAlign = 'center';
-    simCtx.fillText(label, x, y + 11);
+    simCtx.fillText(label, x, y - 20);
 
     simCtx.restore();
   }
@@ -899,7 +965,7 @@
   }
 
   // ==========================================================================
-  // 5. INTERATIVIDADE MOUSE / TOUCH COM LIMITES MECÂNICOS
+  // 5. INTERATIVIDADE MOUSE / TOUCH COM LIMITES MECÂNICOS DA BOBINA
   // ==========================================================================
 
   function getCanvasCoords(e) {
@@ -927,7 +993,7 @@
   function anglFromMouse(x, y) {
     const pivotX = simW / 2;
     const pivotY = simH * 0.11;
-    const maxRad = (state.arcSpan * Math.PI) / (2 * 180);
+    const maxRad = getMaxAllowedAngleRad();
     let a = Math.atan2(-(x - pivotX), y - pivotY);
     return Math.max(-maxRad, Math.min(maxRad, a));
   }
@@ -1011,19 +1077,49 @@
     }
   });
 
-  btnRelease.addEventListener('click', () => {
+  let isReleaseHeld = false;
+
+  function startReleaseHold(e) {
+    if (e && e.type === 'touchstart') e.preventDefault();
+    isReleaseHeld = true;
+    state.isDragging = false;
+    state.isPlaying = false;
+    
+    btnRelease.classList.add('holding');
+    const labelEl = document.getElementById('labelRelease');
+    if (labelEl) labelEl.textContent = 'Solte p/ Disparar';
+
+    // Trava o arco parado no ângulo inicial
     state.theta = (state.initialAngle * Math.PI) / 180;
     state.omega = 0.0;
     state.vPeak = 0.0;
     state.iPeak = 0.0;
     scopeBuffer.length = 0;
-    if (!state.isPlaying) {
-      state.isPlaying = true;
-      iconPlay.classList.add('hidden');
-      iconPause.classList.remove('hidden');
-      labelPlayPause.textContent = 'Pausar';
-    }
-  });
+  }
+
+  function finishReleaseHold() {
+    if (!isReleaseHeld) return;
+    isReleaseHeld = false;
+    
+    btnRelease.classList.remove('holding');
+    const labelEl = document.getElementById('labelRelease');
+    if (labelEl) labelEl.textContent = 'Reiniciar (θ₀)';
+
+    // Inicia o movimento a partir do ângulo inicial
+    state.theta = (state.initialAngle * Math.PI) / 180;
+    state.omega = 0.0;
+    state.isPlaying = true;
+    
+    iconPlay.classList.add('hidden');
+    iconPause.classList.remove('hidden');
+    labelPlayPause.textContent = 'Pausar';
+  }
+
+  btnRelease.addEventListener('mousedown', startReleaseHold);
+  window.addEventListener('mouseup', finishReleaseHold);
+  btnRelease.addEventListener('touchstart', startReleaseHold, { passive: false });
+  window.addEventListener('touchend', finishReleaseHold);
+  btnRelease.addEventListener('click', (e) => e.preventDefault());
 
   speedButtons.forEach((btn) => {
     btn.addEventListener('click', () => {
@@ -1068,16 +1164,6 @@
   slArcSpan.addEventListener('input', (e) => {
     state.arcSpan = parseInt(e.target.value, 10);
     valArcSpan.textContent = `${state.arcSpan}°`;
-    
-    // Limita o ângulo de soltura à metade da extensão do arco
-    const maxAllowedAngle = Math.floor(state.arcSpan / 2);
-    slAngle.max = maxAllowedAngle;
-    if (state.initialAngle > maxAllowedAngle) {
-      state.initialAngle = maxAllowedAngle;
-      slAngle.value = maxAllowedAngle;
-      valAngle.textContent = `${maxAllowedAngle}°`;
-      state.theta = (state.initialAngle * Math.PI) / 180;
-    }
     updateCoilSpecs();
   });
 
@@ -1131,22 +1217,22 @@
   // Presets
   const presets = {
     compact: {
-      armLength: 30, arcSpan: 90, angle: 45, turns: 1000,
+      armLength: 30, arcSpan: 90, angle: 39, turns: 1000,
       wireGauge: 0.25, magnetLength: 10.0, magnetDia: 5.0,
       coilLength: 2.0, mode: 'leds', airDamping: 0.030
     },
     long: {
-      armLength: 60, arcSpan: 90, angle: 45, turns: 1500,
+      armLength: 60, arcSpan: 90, angle: 41, turns: 1500,
       wireGauge: 0.25, magnetLength: 12.0, magnetDia: 6.0,
       coilLength: 2.5, mode: 'leds', airDamping: 0.030
     },
     lenz: {
-      armLength: 30, arcSpan: 90, angle: 45, turns: 1200,
+      armLength: 30, arcSpan: 90, angle: 39, turns: 1200,
       wireGauge: 0.35, magnetLength: 10.0, magnetDia: 6.0,
       coilLength: 2.0, mode: 'short', airDamping: 0.030
     },
     resistor: {
-      armLength: 30, arcSpan: 90, angle: 45, turns: 1000,
+      armLength: 30, arcSpan: 90, angle: 39, turns: 1000,
       wireGauge: 0.25, magnetLength: 10.0, magnetDia: 5.0,
       coilLength: 2.0, mode: 'resistor', resistor: 150, airDamping: 0.030
     }
@@ -1163,16 +1249,6 @@
     slArcSpan.value = p.arcSpan;
     valArcSpan.textContent = `${p.arcSpan}°`;
     state.arcSpan = p.arcSpan;
-
-    const maxAllowedAngle = Math.floor(p.arcSpan / 2);
-    slAngle.max = maxAllowedAngle;
-    const safeAngle = Math.min(p.angle, maxAllowedAngle);
-
-    slAngle.value = safeAngle;
-    valAngle.textContent = `${safeAngle}°`;
-    state.initialAngle = safeAngle;
-    state.theta = (safeAngle * Math.PI) / 180;
-    state.omega = 0.0;
 
     slTurns.value = p.turns;
     valTurns.textContent = p.turns;
@@ -1193,6 +1269,16 @@
     slCoilLength.value = p.coilLength;
     valCoilLength.textContent = `${p.coilLength.toFixed(1)} cm`;
     state.coilLength = p.coilLength / 100.0;
+
+    const maxAllowedAngle = Math.floor(getMaxAllowedAngleDeg());
+    slAngle.max = maxAllowedAngle;
+    const safeAngle = Math.min(p.angle, maxAllowedAngle);
+
+    slAngle.value = safeAngle;
+    valAngle.textContent = `${safeAngle}°`;
+    state.initialAngle = safeAngle;
+    state.theta = (safeAngle * Math.PI) / 180;
+    state.omega = 0.0;
 
     if (p.airDamping !== undefined) {
       state.airDamping = p.airDamping;
