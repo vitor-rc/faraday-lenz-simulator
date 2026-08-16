@@ -1080,11 +1080,20 @@
   let isReleaseHeld = false;
 
   function startReleaseHold(e) {
-    if (e && e.type === 'touchstart') e.preventDefault();
+    if (e) {
+      if (e.cancelable) e.preventDefault();
+      e.stopPropagation();
+    }
     isReleaseHeld = true;
     state.isDragging = false;
     state.isPlaying = false;
-    
+
+    if (e && e.pointerId && btnRelease.setPointerCapture) {
+      try {
+        btnRelease.setPointerCapture(e.pointerId);
+      } catch (err) {}
+    }
+
     btnRelease.classList.add('holding');
     const labelEl = document.getElementById('labelRelease');
     if (labelEl) labelEl.textContent = 'Solte p/ Disparar';
@@ -1097,10 +1106,18 @@
     scopeBuffer.length = 0;
   }
 
-  function finishReleaseHold() {
+  function finishReleaseHold(e) {
     if (!isReleaseHeld) return;
     isReleaseHeld = false;
-    
+
+    if (e && e.pointerId && btnRelease.releasePointerCapture) {
+      try {
+        if (btnRelease.hasPointerCapture(e.pointerId)) {
+          btnRelease.releasePointerCapture(e.pointerId);
+        }
+      } catch (err) {}
+    }
+
     btnRelease.classList.remove('holding');
     const labelEl = document.getElementById('labelRelease');
     if (labelEl) labelEl.textContent = 'Reiniciar (θ₀)';
@@ -1109,16 +1126,23 @@
     state.theta = (state.initialAngle * Math.PI) / 180;
     state.omega = 0.0;
     state.isPlaying = true;
-    
+
     iconPlay.classList.add('hidden');
     iconPause.classList.remove('hidden');
     labelPlayPause.textContent = 'Pausar';
   }
 
+  // Pointer events (unificado para mobile touch e desktop mouse)
+  btnRelease.addEventListener('pointerdown', startReleaseHold);
+  btnRelease.addEventListener('pointerup', finishReleaseHold);
+  btnRelease.addEventListener('pointercancel', finishReleaseHold);
+
+  // Fallbacks adicionais
   btnRelease.addEventListener('mousedown', startReleaseHold);
   window.addEventListener('mouseup', finishReleaseHold);
   btnRelease.addEventListener('touchstart', startReleaseHold, { passive: false });
   window.addEventListener('touchend', finishReleaseHold);
+  window.addEventListener('touchcancel', finishReleaseHold);
   btnRelease.addEventListener('click', (e) => e.preventDefault());
 
   speedButtons.forEach((btn) => {

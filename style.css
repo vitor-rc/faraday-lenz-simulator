@@ -144,27 +144,42 @@ html, body {
     flex-direction: column;
     align-items: stretch;
     gap: 8px;
+    padding: 10px 12px;
+    overflow: hidden;
+  }
+
+  .header-brand {
+    min-width: 0;
   }
 
   .header-presets {
+    display: flex;
+    align-items: center;
+    gap: 6px;
     overflow-x: auto;
     flex-wrap: nowrap;
-    padding-bottom: 4px;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    padding: 2px 4px 6px 4px;
+    margin: 0;
     -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
   }
 
   .header-presets::-webkit-scrollbar {
     height: 4px;
   }
   .header-presets::-webkit-scrollbar-thumb {
-    background: rgba(0, 229, 255, 0.2);
+    background: rgba(0, 229, 255, 0.3);
     border-radius: 2px;
   }
 
   .btn-preset {
     white-space: nowrap;
     flex-shrink: 0;
-    padding: 7px 14px;
+    padding: 6px 12px;
+    font-size: 0.76rem;
   }
 
   .main-layout {
@@ -429,6 +444,7 @@ html, body {
   min-height: 30px;
   user-select: none;
   -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .btn-ctrl:hover { background: rgba(255, 255, 255, 0.1); }
@@ -448,6 +464,8 @@ html, body {
   background: rgba(0, 229, 255, 0.08);
   border-color: rgba(0, 229, 255, 0.3);
   color: var(--accent-cyan);
+  touch-action: none;
+  -webkit-touch-callout: none;
 }
 
 .btn-release-armed:hover {
